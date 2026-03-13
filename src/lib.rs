@@ -1,5 +1,8 @@
 pub mod solana;
 
+#[cfg(feature = "proptest")]
+pub mod arb;
+
 // Re-export commonly used types and functions for convenience
 pub use solana::idl_parser::{
     compute_idl_hash, construct_custom_idl_records_map,
