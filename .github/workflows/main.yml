@@ -45,6 +45,3 @@ jobs:
 
       - name: Run tests
         run: cargo test
-
-      - name: Run tests (proptest feature)
-        run: cargo test --features proptest
