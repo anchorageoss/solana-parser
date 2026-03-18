@@ -4,7 +4,7 @@
 //!
 //! ```toml
 //! [dev-dependencies]
-//! solana_parser = { ..., features = ["proptest"] }
+//! solana-parser-fuzz-core = { ..., features = ["proptest"] }
 //! ```
 //!
 //! The key strategies:
@@ -16,12 +16,12 @@
 //! - [`arb_bytes_for_type`] — valid borsh-encoded bytes for a given `IdlType`
 //! - [`arb_valid_instruction_bytes`] — discriminator + valid borsh arg bytes
 
-use crate::solana::idl_parser::compute_default_anchor_discriminator;
-use crate::solana::structs::{
+use proptest::prelude::*;
+use solana_parser::solana::idl_parser::compute_default_anchor_discriminator;
+use solana_parser::solana::structs::{
     Defined, EnumFields, Idl, IdlField, IdlInstruction, IdlType, IdlTypeDefinition,
     IdlTypeDefinitionType,
 };
-use proptest::prelude::*;
 use std::sync::Arc;
 
 // ── Identifier strategy ───────────────────────────────────────────────────────
