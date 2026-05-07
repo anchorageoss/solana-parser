@@ -10,8 +10,8 @@ on:
 jobs:
   ubuntu:
     if: |
-      github.ref == 'refs/heads/main' ||
-      github.base_ref == 'main' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' && github.base_ref == 'main') ||
       contains(github.event.pull_request.labels.*.name, 'ci')
     runs-on: ubuntu-latest
     steps:
