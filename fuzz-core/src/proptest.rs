@@ -123,6 +123,11 @@ pub fn arb_idl() -> impl Strategy<Value = Idl> {
                 .iter()
                 .zip(all_args)
                 .map(|(name, args)| {
+                    // The fallback is defensive only: `arb_identifier()` produces
+                    // names matching `[a-z][a-z0-9]{0,7}`, and Anchor's discriminator
+                    // is a sha256 truncation of `global:<name>`, which is infallible
+                    // for any non-empty name. Reachable only if the strategy invariant
+                    // ever changes and an empty name slips through.
                     let disc =
                         compute_default_anchor_discriminator(name).unwrap_or_else(|_| vec![0u8; 8]);
                     IdlInstruction {
