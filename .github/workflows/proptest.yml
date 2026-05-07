@@ -2,7 +2,7 @@ name: "Property Tests"
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 jobs:
   proptest:
@@ -34,10 +34,10 @@ jobs:
             ${{ runner.os }}-cargo-proptest-
             ${{ runner.os }}-cargo-
 
-      - name: Run proptest tests
+      - name: Run integration tests (proptest-driven)
         id: proptest
         continue-on-error: true
-        run: cargo test --tests
+        run: cargo test --test fuzz_idl_parsing
 
       - name: Label PR on proptest failure
         env:
