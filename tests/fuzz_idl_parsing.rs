@@ -27,7 +27,8 @@ const TEST_PROGRAM_ID: &str = "11111111111111111111111111111111";
 // Core strategies (`arb_identifier`, `arb_primitive_idl_type`, `arb_idl_type`,
 // `arb_idl_field`, `arb_idl_instruction`, `arb_idl`, `arb_idl_json`,
 // `arb_bytes_for_type`, `arb_valid_instruction_bytes`) live in
-// `solana_parser::arb` and are shared with `pipeline_integration.rs`.
+// `solana_parser_fuzz_core::proptest` so they're reusable from both
+// `cargo test --features proptest` and the libfuzzer harnesses under `fuzz/`.
 
 /// IDL JSON with a defined struct type correlated between `types` and instruction args.
 ///
