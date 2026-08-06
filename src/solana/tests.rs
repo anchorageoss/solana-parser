@@ -265,6 +265,7 @@ fn verify_jupiter_message(transaction_metadata: SolanaMetadata) {
         instruction_data_hex: "02c05c1500".to_string(),
         parsed_instruction: None,
         idl_parse_error: None,
+        is_unregistered: true,
     };
     assert_eq!(exp_instruction_1, transaction_metadata.instructions[0]);
 
@@ -276,6 +277,7 @@ fn verify_jupiter_message(transaction_metadata: SolanaMetadata) {
         instruction_data_hex: "03caa2000000000000".to_string(),
         parsed_instruction: None,
         idl_parse_error: None,
+        is_unregistered: true,
     };
     assert_eq!(exp_instruction_2, transaction_metadata.instructions[1]);
 
@@ -284,6 +286,7 @@ fn verify_jupiter_message(transaction_metadata: SolanaMetadata) {
         program_key: assoc_token_acct_key.to_string(),
         parsed_instruction: None,
         idl_parse_error: None,
+        is_unregistered: true,
         accounts: vec![
             signer_acct.clone(),
             receiving_acct.clone(),
@@ -308,6 +311,7 @@ fn verify_jupiter_message(transaction_metadata: SolanaMetadata) {
         instruction_data_hex: "0200000080f0fa0200000000".to_string(),
         parsed_instruction: None,
         idl_parse_error: None,
+        is_unregistered: true,
     };
     assert_eq!(exp_instruction_4, transaction_metadata.instructions[3]);
 
@@ -319,6 +323,7 @@ fn verify_jupiter_message(transaction_metadata: SolanaMetadata) {
         instruction_data_hex: "11".to_string(),
         parsed_instruction: None,
         idl_parse_error: None,
+        is_unregistered: true,
     };
     assert_eq!(exp_instruction_5, transaction_metadata.instructions[4]);
 
@@ -337,6 +342,7 @@ fn verify_jupiter_message(transaction_metadata: SolanaMetadata) {
         instruction_data_hex: "01".to_string(),
         parsed_instruction: None,
         idl_parse_error: None,
+        is_unregistered: true,
     };
     assert_eq!(exp_instruction_6, transaction_metadata.instructions[5]);
 
@@ -381,6 +387,7 @@ fn verify_jupiter_message(transaction_metadata: SolanaMetadata) {
         "e517cb977ae3ad2a01000000120064000180f0fa02000000005d34700000000000320000"
     );
     // Verify Jupiter IDL was parsed with correct metadata
+    assert!(!exp_instruction_7.is_unregistered);
     let parsed = exp_instruction_7
         .parsed_instruction
         .as_ref()
@@ -403,6 +410,7 @@ fn verify_jupiter_message(transaction_metadata: SolanaMetadata) {
         instruction_data_hex: "09".to_string(),
         parsed_instruction: None,
         idl_parse_error: None,
+        is_unregistered: true,
     };
     assert_eq!(exp_instruction_8, transaction_metadata.instructions[7]);
 
@@ -569,6 +577,7 @@ fn parses_valid_v0_transaction_with_complex_address_table_lookups() {
         instruction_data_hex: "02605f0400".to_string(),
         parsed_instruction: None,
         idl_parse_error: None,
+        is_unregistered: true,
     };
     assert_eq!(exp_instruction_1, transaction_metadata.instructions[0]);
 
@@ -580,6 +589,7 @@ fn parses_valid_v0_transaction_with_complex_address_table_lookups() {
         instruction_data_hex: "032753050000000000".to_string(),
         parsed_instruction: None,
         idl_parse_error: None,
+        is_unregistered: true,
     };
     assert_eq!(exp_instruction_2, transaction_metadata.instructions[1]);
 
@@ -598,6 +608,7 @@ fn parses_valid_v0_transaction_with_complex_address_table_lookups() {
         instruction_data_hex: "01".to_string(),
         parsed_instruction: None,
         idl_parse_error: None,
+        is_unregistered: true,
     };
     assert_eq!(exp_instruction_3, transaction_metadata.instructions[2]);
 
@@ -609,6 +620,7 @@ fn parses_valid_v0_transaction_with_complex_address_table_lookups() {
         instruction_data_hex: "020000008096980000000000".to_string(),
         parsed_instruction: None,
         idl_parse_error: None,
+        is_unregistered: true,
     };
     assert_eq!(exp_instruction_4, transaction_metadata.instructions[3]);
 
@@ -620,6 +632,7 @@ fn parses_valid_v0_transaction_with_complex_address_table_lookups() {
         instruction_data_hex: "11".to_string(),
         parsed_instruction: None,
         idl_parse_error: None,
+        is_unregistered: true,
     };
     assert_eq!(exp_instruction_5, transaction_metadata.instructions[4]);
 
@@ -753,6 +766,7 @@ fn parses_valid_v0_transaction_with_complex_address_table_lookups() {
     );
     // Verify Jupiter IDL was parsed
     assert!(exp_instruction_6.parsed_instruction.is_some());
+    assert!(!exp_instruction_6.is_unregistered);
     let parsed = exp_instruction_6.parsed_instruction.as_ref().unwrap();
     assert_eq!(parsed.instruction_name, "shared_accounts_route");
     assert_eq!(parsed.discriminator, "c1209b3341d69c81");
@@ -773,6 +787,7 @@ fn parses_valid_v0_transaction_with_complex_address_table_lookups() {
         instruction_data_hex: "09".to_string(),
         parsed_instruction: None,
         idl_parse_error: None,
+        is_unregistered: true,
     };
     assert_eq!(exp_instruction_7, transaction_metadata.instructions[6]);
 

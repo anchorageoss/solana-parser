@@ -210,6 +210,12 @@ pub struct SolanaInstruction {
     /// If IDL parsing failed, this contains the structured error.
     /// `None` means either parsing succeeded or no IDL was available for this program.
     pub idl_parse_error: Option<IdlParseError>,
+    /// True when the program or instruction discriminator is not recognized
+    /// by any built-in or custom IDL, i.e. `parsed_instruction.is_none()`.
+    /// Collapses the two distinct None-producing cases (unknown program;
+    /// known program with an unmatched discriminator) into one explicit signal
+    /// for callers that only care whether the instruction was decoded at all.
+    pub is_unregistered: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

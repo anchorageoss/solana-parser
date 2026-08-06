@@ -813,6 +813,7 @@ impl SolanaTransaction {
             )?;
 
             let instruction_data_hex: String = hex::encode(&i.data);
+            let is_unregistered = parsed_inst_option.is_none();
             let inst = SolanaInstruction {
                 program_key,
                 accounts: static_accounts,
@@ -820,6 +821,7 @@ impl SolanaTransaction {
                 address_table_lookups: atlu_addresses,
                 parsed_instruction: parsed_inst_option,
                 idl_parse_error,
+                is_unregistered,
             };
             instructions.push(inst);
         }
