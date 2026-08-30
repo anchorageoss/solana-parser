@@ -15,6 +15,33 @@ use parser::SOL_SYSTEM_PROGRAM_KEY;
 use structs::SolanaMetadata;
 
 #[test]
+fn is_preset_record_resolves_to_preset_source() {
+    // Presets and request-supplied IDLs both arrive as custom IDLs, so without
+    // `is_preset` they are indistinguishable in the output.
+    let idl_json =
+        std::fs::read_to_string(TEST_IDL_DIRECTORY.to_string() + "jupiter_agg_v6.json").unwrap();
+    let idl = idl_parser::decode_idl_data(&idl_json).unwrap();
+    let program_id = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4".to_string();
+
+    let mut record = structs::IdlRecord {
+        program_id: program_id.clone(),
+        program_name: "Jupiter".to_string(),
+        program_type: None,
+        custom_idl: Some(idl),
+        custom_idl_json: Some(idl_json),
+        override_builtin: true,
+        is_preset: true,
+    };
+
+    let (_, _, source) = idl_parser::resolve_idl_for_record(&record, &program_id).unwrap();
+    assert_eq!(source, structs::IdlSource::Preset);
+
+    record.is_preset = false;
+    let (_, _, source) = idl_parser::resolve_idl_for_record(&record, &program_id).unwrap();
+    assert_eq!(source, structs::IdlSource::Custom);
+}
+
+#[test]
 fn record_and_config_entry_points_agree() {
     // The record-taking entry point exists so a caller can hoist
     // `construct_idl_records_map` out of the per-parse path. It is only safe to
