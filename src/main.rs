@@ -201,6 +201,9 @@ fn print_parsed_instruction_data(p_inst_data: Option<SolanaParsedInstructionData
                     program_type.program_name()
                 );
             }
+            IdlSource::Preset => {
+                println!("          IDL Source: Preset");
+            }
             IdlSource::Custom => {
                 println!("          IDL Source: Custom");
             }
