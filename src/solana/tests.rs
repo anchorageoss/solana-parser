@@ -15,6 +15,40 @@ use parser::SOL_SYSTEM_PROGRAM_KEY;
 use structs::SolanaMetadata;
 
 #[test]
+fn record_and_config_entry_points_agree() {
+    // The record-taking entry point exists so a caller can hoist
+    // `construct_idl_records_map` out of the per-parse path. It is only safe to
+    // do that if it decodes identically to the config-taking one.
+    let unsigned_payload = "0100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010001032b162ad640a79029d57fbe5dad39d5741066c4c65b22bd248c8677174c28a4630d42099a5e0aaeaad1d4ede263662787cb3f6291a6ede340c4aa7ca26249dbe3000000000000000000000000000000000000000000000000000000000000000021d594adba2b7fbd34a0383ded05e2ba526e907270d8394b47886805b880e73201020200010c020000006f00000000000000".to_string();
+
+    // A custom IDL is supplied so the two paths are compared over a populated
+    // record map, not just the built-ins.
+    let idl_json =
+        std::fs::read_to_string(TEST_IDL_DIRECTORY.to_string() + "jupiter_agg_v6.json").unwrap();
+    let mut configs = HashMap::new();
+    configs.insert(
+        "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4".to_string(),
+        structs::CustomIdlConfig {
+            idl: structs::CustomIdl::Json(idl_json),
+            override_builtin: true,
+        },
+    );
+
+    let via_configs =
+        parser::parse_transaction_with_idls(unsigned_payload.clone(), true, Some(configs.clone()))
+            .unwrap();
+
+    let records = idl_parser::construct_idl_records_map(Some(configs)).unwrap();
+    let via_records =
+        parser::parse_transaction_with_idl_records(unsigned_payload, true, records).unwrap();
+
+    assert_eq!(
+        via_configs.solana_parsed_transaction,
+        via_records.solana_parsed_transaction
+    );
+}
+
+#[test]
 fn parses_valid_legacy_transactions() {
     let unsigned_payload = "0100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010001032b162ad640a79029d57fbe5dad39d5741066c4c65b22bd248c8677174c28a4630d42099a5e0aaeaad1d4ede263662787cb3f6291a6ede340c4aa7ca26249dbe3000000000000000000000000000000000000000000000000000000000000000021d594adba2b7fbd34a0383ded05e2ba526e907270d8394b47886805b880e73201020200010c020000006f00000000000000".to_string();
     let parsed_tx = SolanaTransaction::new(&unsigned_payload, true, None).unwrap();
