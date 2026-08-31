@@ -10,7 +10,7 @@ pub use solana::parser::{
     parse_transaction, parse_transaction_with_idl_records, parse_transaction_with_idls,
 };
 pub use solana::structs::{
-    CustomIdl, CustomIdlConfig, Idl, IdlInstruction, IdlParseError, IdlRecord, IdlSource,
-    ProgramType, SolanaInstruction, SolanaMetadata, SolanaParseResponse,
+    AccountAddress, CustomIdl, CustomIdlConfig, Idl, IdlInstruction, IdlParseError, IdlRecord,
+    IdlSource, ProgramType, SolanaInstruction, SolanaMetadata, SolanaParseResponse,
     SolanaParsedInstructionData, SolanaParsedTransaction, SolanaParsedTransactionPayload,
 };
