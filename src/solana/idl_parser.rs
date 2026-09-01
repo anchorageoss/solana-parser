@@ -5,7 +5,7 @@ use crate::solana::structs::{
 };
 use bs58;
 use byteorder::{LittleEndian, ReadBytesExt};
-use serde_json::{from_str, from_value, Map, Value};
+use serde_json::{Map, Value, from_str, from_value};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::io::{Cursor, Read};
@@ -56,8 +56,8 @@ const MAX_ALLOC_PER_CURSOR_LENGTH: usize = 24; // Typical heap allocation overhe
 /// Constructs a mapping from program_id to IdlRecord for all built-in IDLs.
 /// IDLs are embedded at compile time and do not require file system access.
 #[allow(dead_code)] // Public API - exported from lib.rs
-pub fn construct_custom_idl_records_map(
-) -> Result<HashMap<String, IdlRecord>, Box<dyn std::error::Error>> {
+pub fn construct_custom_idl_records_map()
+-> Result<HashMap<String, IdlRecord>, Box<dyn std::error::Error>> {
     let mut idl_map = HashMap::new();
 
     for program_type in ProgramType::all() {
@@ -160,8 +160,6 @@ pub fn construct_idl_records_map(
     Ok(idl_map)
 }
 
-/// Get the resolved IDL and its JSON string for an IdlRecord.
-/// Returns (Idl, idl_json_str, IdlSource)
 /// Which of the two non-built-in sources a record's IDL came from.
 fn custom_idl_source(idl_record: &IdlRecord) -> crate::solana::structs::IdlSource {
     if idl_record.is_preset {
@@ -171,6 +169,8 @@ fn custom_idl_source(idl_record: &IdlRecord) -> crate::solana::structs::IdlSourc
     }
 }
 
+/// Get the resolved IDL and its JSON string for an IdlRecord.
+/// Returns (Idl, idl_json_str, IdlSource)
 pub fn resolve_idl_for_record(
     idl_record: &IdlRecord,
     program_key: &str,
