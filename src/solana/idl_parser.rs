@@ -5,7 +5,7 @@ use crate::solana::structs::{
 };
 use bs58;
 use byteorder::{LittleEndian, ReadBytesExt};
-use serde_json::{Map, Value, from_str, from_value};
+use serde_json::{from_str, from_value, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::io::{Cursor, Read};
@@ -56,8 +56,8 @@ const MAX_ALLOC_PER_CURSOR_LENGTH: usize = 24; // Typical heap allocation overhe
 /// Constructs a mapping from program_id to IdlRecord for all built-in IDLs.
 /// IDLs are embedded at compile time and do not require file system access.
 #[allow(dead_code)] // Public API - exported from lib.rs
-pub fn construct_custom_idl_records_map()
--> Result<HashMap<String, IdlRecord>, Box<dyn std::error::Error>> {
+pub fn construct_custom_idl_records_map(
+) -> Result<HashMap<String, IdlRecord>, Box<dyn std::error::Error>> {
     let mut idl_map = HashMap::new();
 
     for program_type in ProgramType::all() {
@@ -69,7 +69,6 @@ pub fn construct_custom_idl_records_map()
             custom_idl: None,
             custom_idl_json: None,
             override_builtin: false,
-            is_preset: false,
         };
 
         idl_map.insert(program_id, idl_record);
@@ -109,7 +108,6 @@ pub fn construct_idl_records_map(
             custom_idl: None,
             custom_idl_json: None,
             override_builtin: false,
-            is_preset: false,
         };
 
         idl_map.insert(program_id, idl_record);
@@ -150,7 +148,6 @@ pub fn construct_idl_records_map(
                     custom_idl: Some(custom_idl),
                     custom_idl_json: Some(custom_idl_json),
                     override_builtin: true, // Always override for unknown programs
-                    is_preset: false,
                 };
                 idl_map.insert(program_id, idl_record);
             }
@@ -158,15 +155,6 @@ pub fn construct_idl_records_map(
     }
 
     Ok(idl_map)
-}
-
-/// Which of the two non-built-in sources a record's IDL came from.
-fn custom_idl_source(idl_record: &IdlRecord) -> crate::solana::structs::IdlSource {
-    if idl_record.is_preset {
-        crate::solana::structs::IdlSource::Preset
-    } else {
-        crate::solana::structs::IdlSource::Custom
-    }
 }
 
 /// Get the resolved IDL and its JSON string for an IdlRecord.
@@ -186,7 +174,7 @@ pub fn resolve_idl_for_record(
                 .custom_idl_json
                 .clone()
                 .ok_or("Custom IDL present but JSON string missing")?;
-            return Ok((custom_idl.clone(), json, custom_idl_source(idl_record)));
+            return Ok((custom_idl.clone(), json, IdlSource::Custom));
         }
     }
 
@@ -205,7 +193,7 @@ pub fn resolve_idl_for_record(
             .custom_idl_json
             .clone()
             .ok_or("Custom IDL present but JSON string missing")?;
-        Ok((custom_idl.clone(), json, custom_idl_source(idl_record)))
+        Ok((custom_idl.clone(), json, IdlSource::Custom))
     } else {
         Err(format!("No IDL available for program: {program_key}").into())
     }
