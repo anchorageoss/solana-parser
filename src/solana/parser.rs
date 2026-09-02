@@ -10,8 +10,8 @@ use solana_sdk::{
     hash::Hash,
     instruction::CompiledInstruction,
     message::{
-        v0::{Message as VersionZeroMessage, MessageAddressTableLookup},
         Message as LegacyMessage, MessageHeader, VersionedMessage,
+        v0::{Message as VersionZeroMessage, MessageAddressTableLookup},
     },
     pubkey::Pubkey,
     system_instruction::SystemInstruction,
@@ -87,14 +87,32 @@ pub fn parse_transaction_with_idls(
     full_transaction: bool,
     custom_idls: Option<HashMap<String, CustomIdlConfig>>,
 ) -> Result<SolanaParseResponse, Box<dyn Error>> {
+    let custom_idl_records = idl_parser::construct_idl_records_map(custom_idls)?;
+    parse_transaction_with_idl_records(unsigned_tx, full_transaction, custom_idl_records)
+}
+
+/// Same as [`parse_transaction_with_idls`], but takes an already-built
+/// `IdlRecord` map.
+///
+/// [`idl_parser::construct_idl_records_map`] parses each custom IDL and
+/// re-serializes it to produce the hash JSON. A caller whose IDL set does not
+/// vary between calls can build the map once and pass it here rather than
+/// paying that on every parse. Use [`idl_parser::construct_custom_idl_records_map`]
+/// to get the built-in records to layer under it.
+pub fn parse_transaction_with_idl_records(
+    unsigned_tx: String,
+    full_transaction: bool,
+    custom_idl_records: HashMap<String, IdlRecord>,
+) -> Result<SolanaParseResponse, Box<dyn Error>> {
     if unsigned_tx.is_empty() {
         return Err("Transaction is empty".into());
     }
 
-    let tx = SolanaTransaction::new_with_idls(&unsigned_tx, full_transaction, custom_idls)
-        .map_err(|e| {
-            Box::<dyn std::error::Error>::from(format!("Unable to parse transaction: {e}"))
-        })?;
+    let tx =
+        SolanaTransaction::new_with_idl_records(&unsigned_tx, full_transaction, custom_idl_records)
+            .map_err(|e| {
+                Box::<dyn std::error::Error>::from(format!("Unable to parse transaction: {e}"))
+            })?;
 
     // use the sanitize message to check for malformed transactions
     tx.message.sanitize().map_err(|e| {
@@ -135,6 +153,22 @@ fn parse_solana_transaction_with_idls(
     full_transaction: bool,
     custom_idls: Option<HashMap<String, CustomIdlConfig>>,
 ) -> Result<SolanaTransaction, Box<dyn std::error::Error>> {
+    let custom_idl_records = idl_parser::construct_idl_records_map(custom_idls)?;
+    parse_solana_transaction_with_idl_records(unsigned_tx, full_transaction, custom_idl_records)
+}
+
+/// Same as [`parse_solana_transaction_with_idls`], but takes the already-built
+/// `IdlRecord` map instead of the configs to build it from.
+///
+/// Building that map parses every custom IDL and re-serializes it for the hash
+/// JSON. For a caller whose IDL set is fixed across calls -- compiled-in presets,
+/// say -- that work is identical every time, so this entry point lets it be
+/// hoisted into a cache the caller owns.
+fn parse_solana_transaction_with_idl_records(
+    unsigned_tx: &str,
+    full_transaction: bool,
+    custom_idl_records: HashMap<String, IdlRecord>,
+) -> Result<SolanaTransaction, Box<dyn std::error::Error>> {
     let unsigned_tx_bytes: Vec<u8> = hex::decode(unsigned_tx)
         .map_err(|_| "unsigned Solana transaction provided is invalid hex")?;
 
@@ -143,8 +177,6 @@ fn parse_solana_transaction_with_idls(
             "unsigned Solana transaction provided must be non-empty",
         ));
     }
-
-    let custom_idl_records = idl_parser::construct_idl_records_map(custom_idls)?;
 
     if full_transaction {
         let (signatures, tx_body) = parse_signatures(&unsigned_tx_bytes)?;
@@ -560,9 +592,9 @@ impl SplInstructionData {
                             "error while parsing spl instruction TransferCheckedWithFee -- amount"
                         })?;
                         let (&decimals, rest) = rest.split_first().ok_or("error while parsing spl instruction TransferCheckedWithFee -- decimals")?;
-                        let (fee, _rest) = unpack_u64(rest).map_err(|_| {
-                            "error while parsing spl instruction TransferCheckedWithFee -- fee"
-                        })?;
+                        let (fee, _rest) = unpack_u64(rest).map_err(
+                            |_| "error while parsing spl instruction TransferCheckedWithFee -- fee",
+                        )?;
                         (amount, decimals, fee)
                     }
                     _ => return Ok(Self::Unsupported),
@@ -612,6 +644,15 @@ impl SolanaTransaction {
         custom_idls: Option<HashMap<String, CustomIdlConfig>>,
     ) -> Result<Self, Box<dyn Error>> {
         parse_solana_transaction_with_idls(hex_tx, full_transaction, custom_idls)
+    }
+
+    /// Same as [`Self::new_with_idls`], but takes an already-built `IdlRecord` map.
+    pub fn new_with_idl_records(
+        hex_tx: &str,
+        full_transaction: bool,
+        custom_idl_records: HashMap<String, IdlRecord>,
+    ) -> Result<Self, Box<dyn Error>> {
+        parse_solana_transaction_with_idl_records(hex_tx, full_transaction, custom_idl_records)
     }
 
     fn all_account_key_strings(&self) -> Vec<String> {
@@ -772,7 +813,9 @@ impl SolanaTransaction {
                         // A third address being included may happen due to SDK artifacts, or to store state for some unconventional flows
                         // Notably, transactions generated by Jupiter for limit order v2 deposits include these -- https://dev.jup.ag/api-reference/trigger/v2/deposit-craft
                         if all_transaction_addresses.len() < 2 {
-                            return Err(Box::<dyn std::error::Error>::from("System Program Transfer Instruction should have at least 2 arguments"));
+                            return Err(Box::<dyn std::error::Error>::from(
+                                "System Program Transfer Instruction should have at least 2 arguments",
+                            ));
                         }
                         let transfer = SolTransfer {
                             amount: lamports.to_string(),
