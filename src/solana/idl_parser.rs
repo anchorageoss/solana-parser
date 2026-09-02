@@ -5,7 +5,7 @@ use crate::solana::structs::{
 };
 use bs58;
 use byteorder::{LittleEndian, ReadBytesExt};
-use serde_json::{Map, Value, from_str, from_value};
+use serde_json::{from_str, from_value, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::io::{Cursor, Read};
@@ -56,8 +56,8 @@ const MAX_ALLOC_PER_CURSOR_LENGTH: usize = 24; // Typical heap allocation overhe
 /// Constructs a mapping from program_id to IdlRecord for all built-in IDLs.
 /// IDLs are embedded at compile time and do not require file system access.
 #[allow(dead_code)] // Public API - exported from lib.rs
-pub fn construct_custom_idl_records_map()
--> Result<HashMap<String, IdlRecord>, Box<dyn std::error::Error>> {
+pub fn construct_custom_idl_records_map(
+) -> Result<HashMap<String, IdlRecord>, Box<dyn std::error::Error>> {
     let mut idl_map = HashMap::new();
 
     for program_type in ProgramType::all() {

@@ -10,8 +10,8 @@ use solana_sdk::{
     hash::Hash,
     instruction::CompiledInstruction,
     message::{
-        Message as LegacyMessage, MessageHeader, VersionedMessage,
         v0::{Message as VersionZeroMessage, MessageAddressTableLookup},
+        Message as LegacyMessage, MessageHeader, VersionedMessage,
     },
     pubkey::Pubkey,
     system_instruction::SystemInstruction,
@@ -592,9 +592,9 @@ impl SplInstructionData {
                             "error while parsing spl instruction TransferCheckedWithFee -- amount"
                         })?;
                         let (&decimals, rest) = rest.split_first().ok_or("error while parsing spl instruction TransferCheckedWithFee -- decimals")?;
-                        let (fee, _rest) = unpack_u64(rest).map_err(
-                            |_| "error while parsing spl instruction TransferCheckedWithFee -- fee",
-                        )?;
+                        let (fee, _rest) = unpack_u64(rest).map_err(|_| {
+                            "error while parsing spl instruction TransferCheckedWithFee -- fee"
+                        })?;
                         (amount, decimals, fee)
                     }
                     _ => return Ok(Self::Unsupported),
