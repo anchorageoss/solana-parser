@@ -249,11 +249,26 @@ pub struct SplTransfer {
     pub fee: Option<String>,
 }
 
+/// An instruction account resolved against the IDL: the address it was given
+/// in the transaction, plus the position it occupies.
+///
+/// `index` is the account's position in the instruction's own account list,
+/// which -- because names are assigned positionally by
+/// [`create_accounts_map`](crate::solana::idl_parser::create_accounts_map) --
+/// is also its index in the IDL's declared account list. Consumers that want
+/// to present accounts in IDL order need this, because `named_accounts` is
+/// keyed by name and so loses the ordering.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NamedAccount {
+    pub address: String,
+    pub index: usize,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SolanaParsedInstructionData {
     pub instruction_name: String,
     pub discriminator: String,
-    pub named_accounts: HashMap<String, String>,
+    pub named_accounts: HashMap<String, NamedAccount>,
     pub program_call_args: serde_json::Map<std::string::String, Value>,
     /// Indicates whether a built-in or custom IDL was used
     pub idl_source: IdlSource,

@@ -1,6 +1,6 @@
 use crate::solana::structs::{
     AccountAddress, CustomIdl, CustomIdlConfig, Defined, EnumFields, Idl, IdlInstruction,
-    IdlRecord, IdlType, IdlTypeDefinition, IdlTypeDefinitionType, ProgramType,
+    IdlRecord, IdlType, IdlTypeDefinition, IdlTypeDefinitionType, NamedAccount, ProgramType,
     SolanaParsedInstructionData,
 };
 use bs58;
@@ -395,7 +395,7 @@ fn to_snake_case(target: &str) -> String {
 pub fn create_accounts_map(
     accounts: &[AccountAddress],
     instruction_spec: &IdlInstruction,
-) -> Result<HashMap<String, String>, Box<dyn std::error::Error>> {
+) -> Result<HashMap<String, NamedAccount>, Box<dyn std::error::Error>> {
     if accounts.len() < instruction_spec.accounts.len() {
         return Err(format!(
             "too few accounts provided in transaction payload for instruction {}",
@@ -404,9 +404,29 @@ pub fn create_accounts_map(
         .into());
     }
 
-    let mut acct_map: HashMap<String, String> = HashMap::new();
-    for (account_spec, account) in instruction_spec.accounts.iter().zip(accounts.iter()) {
-        acct_map.insert(account_spec.name.clone(), account.to_string());
+    // Names are assigned purely by position: the nth IDL-declared account names
+    // the nth account of the instruction. `NamedAccount::index` records that
+    // position, so it is both the account index and the IDL index -- an
+    // equality the zip below is what establishes. Keep them in step if account
+    // naming ever stops being positional.
+    //
+    // `accounts` may be longer than the IDL's list (the guard above only
+    // rejects too *few*); zip stops at the shorter side, leaving any trailing
+    // accounts unnamed and absent from this map.
+    let mut acct_map: HashMap<String, NamedAccount> = HashMap::new();
+    for (index, (account_spec, account)) in instruction_spec
+        .accounts
+        .iter()
+        .zip(accounts.iter())
+        .enumerate()
+    {
+        acct_map.insert(
+            account_spec.name.clone(),
+            NamedAccount {
+                address: account.to_string(),
+                index,
+            },
+        );
     }
     Ok(acct_map)
 }
@@ -821,5 +841,85 @@ fn cycle_recursive_check(
             }
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod create_accounts_map_tests {
+    use super::*;
+    use crate::solana::structs::{IdlAccount, SolanaAccount};
+
+    fn idl_account(name: &str) -> IdlAccount {
+        IdlAccount {
+            name: name.to_string(),
+            is_mut: false,
+            is_signer: false,
+            is_optional: false,
+        }
+    }
+
+    fn instruction_spec(names: &[&str]) -> IdlInstruction {
+        IdlInstruction {
+            name: "route_v2".to_string(),
+            discriminator: Some(vec![0; 8]),
+            accounts: names.iter().map(|n| idl_account(n)).collect(),
+            args: vec![],
+        }
+    }
+
+    fn accounts(keys: &[&str]) -> Vec<AccountAddress> {
+        keys.iter()
+            .map(|k| {
+                AccountAddress::Static(SolanaAccount {
+                    account_key: k.to_string(),
+                    signer: false,
+                    writable: false,
+                })
+            })
+            .collect()
+    }
+
+    /// The index recorded for each name is its position in the IDL's declared
+    /// account list, which is also its position in the instruction's accounts.
+    #[test]
+    fn records_idl_declaration_order_as_index() {
+        let spec = instruction_spec(&["authority", "source_mint", "destination_mint"]);
+        let map = create_accounts_map(&accounts(&["Auth11", "Src11", "Dst11"]), &spec).unwrap();
+
+        assert_eq!(map["authority"].index, 0);
+        assert_eq!(map["authority"].address, "Auth11");
+        assert_eq!(map["source_mint"].index, 1);
+        assert_eq!(map["source_mint"].address, "Src11");
+        assert_eq!(map["destination_mint"].index, 2);
+        assert_eq!(map["destination_mint"].address, "Dst11");
+    }
+
+    /// Repeated addresses stay distinct entries: the index disambiguates two
+    /// names that resolve to the same pubkey.
+    #[test]
+    fn distinguishes_repeated_addresses_by_index() {
+        let spec = instruction_spec(&["payer", "authority"]);
+        let map = create_accounts_map(&accounts(&["Same11", "Same11"]), &spec).unwrap();
+
+        assert_eq!(map["payer"].index, 0);
+        assert_eq!(map["authority"].index, 1);
+        assert_eq!(map["payer"].address, map["authority"].address);
+    }
+
+    /// Accounts past the IDL's declared list are left unnamed, as before.
+    #[test]
+    fn leaves_trailing_extra_accounts_unnamed() {
+        let spec = instruction_spec(&["authority"]);
+        let map = create_accounts_map(&accounts(&["Auth11", "Extra11", "Extra22"]), &spec).unwrap();
+
+        assert_eq!(map.len(), 1);
+        assert_eq!(map["authority"].index, 0);
+    }
+
+    /// Too few accounts remains a hard error.
+    #[test]
+    fn rejects_too_few_accounts() {
+        let spec = instruction_spec(&["authority", "source_mint"]);
+        assert!(create_accounts_map(&accounts(&["Auth11"]), &spec).is_err());
     }
 }

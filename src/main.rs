@@ -211,9 +211,15 @@ fn print_parsed_instruction_data(p_inst_data: Option<SolanaParsedInstructionData
         println!("          IDL Hash: {}", parsed_data.idl_hash);
 
         println!("          Named Accounts:");
-        for k in parsed_data.named_accounts.keys() {
-            let acct_string = parsed_data.named_accounts[k].clone();
-            println!("            {}: {}", k, acct_string);
+        // Sort by IDL position so the listing matches the order the IDL
+        // declares the accounts in, rather than HashMap iteration order.
+        let mut named: Vec<_> = parsed_data.named_accounts.iter().collect();
+        named.sort_by_key(|(_, account)| account.index);
+        for (name, account) in named {
+            println!(
+                "            [{}] {}: {}",
+                account.index, name, account.address
+            );
         }
         println!("          Args:");
         for k in parsed_data.program_call_args.keys() {
