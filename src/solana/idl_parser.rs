@@ -222,7 +222,7 @@ impl<'a> TypeResolver<'a> {
         for ty in &idl.types {
             if type_cache.contains_key(&ty.name) {
                 return Err(
-                    format!("multiple types with the same name detected: {}", &ty.name).into(),
+                    format!("multiple types with the same name detected: {}", ty.name).into(),
                 );
             }
             type_cache.insert(ty.name.clone(), ty);
