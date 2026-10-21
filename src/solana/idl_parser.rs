@@ -177,26 +177,30 @@ fn custom_idl_source(idl_record: &IdlRecord) -> crate::solana::structs::IdlSourc
 /// A built-in program's IDL, decoded from its embedded JSON once per process,
 /// with that JSON's [`compute_idl_hash`].
 fn builtin_idl(program_type: &ProgramType) -> Result<&'static (Idl, String), String> {
-    type Decoded = Result<(Idl, String), String>;
-    static BUILTIN_IDLS: std::sync::OnceLock<Vec<(ProgramType, Decoded)>> =
-        std::sync::OnceLock::new();
-    let decoded = BUILTIN_IDLS.get_or_init(|| {
+    type Decoded = std::sync::OnceLock<Result<(Idl, String), String>>;
+    // One slot per built-in, filled the first time that program is resolved.
+    static BUILTIN_IDLS: std::sync::OnceLock<Vec<Decoded>> = std::sync::OnceLock::new();
+    let slots = BUILTIN_IDLS.get_or_init(|| {
         ProgramType::all()
             .iter()
-            .map(|program_type| {
-                let json = program_type.idl_json();
-                let idl = decode_idl_data(json)
-                    .map(|idl| (idl, compute_idl_hash(json)))
-                    .map_err(|e| e.to_string());
-                (program_type.clone(), idl)
-            })
+            .map(|_| std::sync::OnceLock::new())
             .collect()
     });
-    match decoded.iter().find(|(t, _)| t == program_type) {
-        Some((_, Ok(idl))) => Ok(idl),
-        Some((_, Err(e))) => Err(e.clone()),
-        None => Err(format!("no embedded IDL for program type {program_type:?}")),
-    }
+    let index = ProgramType::all()
+        .iter()
+        .position(|t| t == program_type)
+        .ok_or_else(|| format!("no embedded IDL for program type {program_type:?}"))?;
+    let slot = slots
+        .get(index)
+        .ok_or_else(|| format!("no embedded IDL for program type {program_type:?}"))?;
+    slot.get_or_init(|| {
+        let json = program_type.idl_json();
+        decode_idl_data(json)
+            .map(|idl| (idl, compute_idl_hash(json)))
+            .map_err(|e| e.to_string())
+    })
+    .as_ref()
+    .map_err(Clone::clone)
 }
 
 /// The IDL hash a custom record resolves to: its precomputed
