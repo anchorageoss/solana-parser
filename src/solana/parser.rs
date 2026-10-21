@@ -338,9 +338,11 @@ fn parse_signatures(
     let parse_len = num_signatures * LEN_SOL_SIGNATURE_BYTES;
     validate_length(remainder, parse_len, "Signatures")?;
     let signatures: Vec<Signature> = remainder
-        .chunks_exact(LEN_SOL_SIGNATURE_BYTES)
+        .as_chunks::<LEN_SOL_SIGNATURE_BYTES>()
+        .0
+        .iter()
         .take(num_signatures)
-        .map(<[u8]>::to_vec)
+        .map(|signature| signature.to_vec())
         .collect();
     Ok((signatures, &remainder[parse_len..]))
 }
@@ -381,11 +383,11 @@ fn parse_accounts(
     let len_accounts_array = LEN_SOL_ACCOUNT_KEY_BYTES * accounts_num;
     validate_length(tx_body_remainder, len_accounts_array, "Accounts")?;
     let mut pubkeys: Vec<Pubkey> = Vec::with_capacity(accounts_num);
-    for key_bytes in tx_body_remainder[..len_accounts_array].chunks_exact(LEN_SOL_ACCOUNT_KEY_BYTES)
+    for key_bytes in tx_body_remainder[..len_accounts_array]
+        .as_chunks::<LEN_SOL_ACCOUNT_KEY_BYTES>()
+        .0
     {
-        let mut pubkey_sized_bytes = [0u8; LEN_SOL_ACCOUNT_KEY_BYTES];
-        pubkey_sized_bytes.copy_from_slice(key_bytes);
-        pubkeys.push(Pubkey::new_from_array(pubkey_sized_bytes));
+        pubkeys.push(Pubkey::new_from_array(*key_bytes));
     }
     Ok((pubkeys, &tx_body_remainder[len_accounts_array..]))
 }
