@@ -200,7 +200,11 @@ fn check_never_panics(name: &str, idl: &Idl) {
         any::<usize>(),
         prop::collection::vec(any::<u8>(), 0..1300usize),
     );
-    TestRunner::new(ProptestConfig::default())
+    let config = ProptestConfig {
+        source_file: Some(file!()),
+        ..ProptestConfig::default()
+    };
+    TestRunner::new(config)
         .run(&strategy, |(use_valid_disc, inst_idx, data)| {
             check_dispatch(idl, use_valid_disc, inst_idx, &data)
         })
@@ -222,7 +226,11 @@ fn check_valid_data_parses_ok(name: &str, idl: &Idl) {
         arb::arb_valid_instruction_bytes(&instructions[inst_idx], types.clone())
             .prop_map(move |bytes| (inst_idx, bytes))
     });
-    TestRunner::new(ProptestConfig::default())
+    let config = ProptestConfig {
+        source_file: Some(file!()),
+        ..ProptestConfig::default()
+    };
+    TestRunner::new(config)
         .run(&strategy, |(inst_idx, bytes)| {
             let expected = &idl.instructions[inst_idx].name;
             let result = parse_instruction_with_idl(&bytes, TEST_PROGRAM_ID, idl);
