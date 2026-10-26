@@ -313,11 +313,15 @@ fn arb_bytes_for_type_def(
                 return Just(vec![]).boxed();
             }
             let variants = variants.clone();
-            let n = variants.len();
+            // The variant index is one byte, so at most 256 variants are
+            // encodable. Keep the bound as usize: `256 as u8` would be 0.
+            let n = variants.len().min(usize::from(u8::MAX) + 1);
             let types2 = types.clone();
-            (0u8..n as u8)
+            (0..n)
                 .prop_flat_map(move |idx| {
-                    let variant = &variants[idx as usize];
+                    let variant = &variants[idx];
+                    // idx < n <= 256, so this never truncates.
+                    let tag = idx as u8;
                     let field_bytes = match &variant.fields {
                         Some(EnumFields::Named(fields)) => {
                             let strats: Vec<_> = fields
@@ -337,7 +341,7 @@ fn arb_bytes_for_type_def(
                     };
                     field_bytes
                         .prop_map(move |mut b| {
-                            let mut out = vec![idx];
+                            let mut out = vec![tag];
                             out.append(&mut b);
                             out
                         })

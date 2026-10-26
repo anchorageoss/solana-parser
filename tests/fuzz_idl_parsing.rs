@@ -482,6 +482,23 @@ fn size_guard_rejects_over_budget_vec_length() {
     }
 }
 
+/// A defined enum with 256 unit variants uses every one-byte variant index;
+/// generating and parsing valid data for it must work for all of them.
+#[test]
+fn enum_with_256_variants_parses_valid_data() {
+    let variants: Vec<serde_json::Value> = (0..256)
+        .map(|i| serde_json::json!({"name": format!("v{i}")}))
+        .collect();
+    let idl = serde_json::json!({
+        "instructions": [{"name": "pick", "accounts": [], "args": [
+            {"name": "choice", "type": {"defined": "Choice"}}
+        ]}],
+        "types": [{"name": "Choice", "type": {"kind": "enum", "variants": variants}}]
+    });
+    let idl = decode_idl_data(&idl.to_string()).unwrap();
+    check_valid_data_parses_ok("256-variant enum", &idl);
+}
+
 // ── Embedded-IDL property tests ───────────────────────────────────────────────
 //
 // Run the crash-safety and valid-data checks against every IDL embedded in the
