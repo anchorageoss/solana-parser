@@ -106,7 +106,10 @@ pub fn arb_idl_instruction() -> impl Strategy<Value = IdlInstruction> {
 /// vec is always empty and `TypeResolver` always succeeds.
 pub fn arb_idl() -> impl Strategy<Value = Idl> {
     prop::collection::hash_set("[a-z][a-z0-9]{0,7}", 1..=5usize).prop_flat_map(|name_set| {
-        let names: Vec<String> = name_set.into_iter().collect();
+        // HashSet iteration order depends on per-process hash state, so sort
+        // to keep the name/argument pairing a function of the proptest seed.
+        let mut names: Vec<String> = name_set.into_iter().collect();
+        names.sort_unstable();
         let n = names.len();
         prop::collection::vec(
             prop::collection::vec(
