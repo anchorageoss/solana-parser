@@ -13,6 +13,7 @@
 //! More iterations: `PROPTEST_CASES=5000 cargo test --test fuzz_idl_parsing`
 
 use proptest::prelude::*;
+use proptest::strategy::ValueTree;
 use proptest::test_runner::{TestCaseError, TestRunner};
 use solana_parser::solana::structs::{
     Defined, Idl, IdlField, IdlType, IdlTypeDefinition, IdlTypeDefinitionType, ProgramType,
@@ -56,7 +57,7 @@ fn arb_defined_struct_idl_json() -> impl Strategy<Value = String> {
                     r#type: IdlTypeDefinitionType::Struct { fields },
                 }],
             };
-            serde_json::to_string(&idl).unwrap()
+            arb::idl_to_json(&idl)
         })
 }
 
@@ -76,7 +77,7 @@ fn arb_vec_arg_idl_json() -> impl Strategy<Value = String> {
                 instructions: vec![inst],
                 types: vec![],
             };
-            serde_json::to_string(&idl).unwrap()
+            arb::idl_to_json(&idl)
         })
     })
 }
@@ -97,6 +98,61 @@ fn arb_idl_and_valid_bytes() -> impl Strategy<Value = (Idl, usize, Vec<u8>)> {
             let idl_c = idl_owned.clone();
             byte_strat.prop_map(move |bytes| (idl_c.clone(), inst_idx, bytes))
         })
+    })
+}
+
+// ── Generator coverage ───────────────────────────────────────────────────────
+//
+// The crash-safety properties only reach instruction parsing when the generated
+// JSON decodes. These checks fail if a generator stops producing decodable IDLs,
+// which would otherwise make those properties pass while testing nothing.
+
+/// Samples `cases` values from `strategy` and asserts every one decodes.
+fn assert_generated_idls_decode<S: Strategy<Value = String>>(name: &str, strategy: S, cases: u32) {
+    let mut runner = TestRunner::deterministic();
+    for case in 0..cases {
+        let json = strategy.new_tree(&mut runner).unwrap().current();
+        if let Err(e) = decode_idl_data(&json) {
+            panic!("{name}: case {case} failed to decode: {e}\n{json}");
+        }
+    }
+}
+
+#[test]
+fn generated_idl_json_decodes() {
+    assert_generated_idls_decode("arb_idl_json", arb::arb_idl_json(), 256);
+    assert_generated_idls_decode("arb_vec_arg_idl_json", arb_vec_arg_idl_json(), 256);
+    assert_generated_idls_decode(
+        "arb_defined_struct_idl_json",
+        arb_defined_struct_idl_json(),
+        256,
+    );
+}
+
+/// A decoded `arb_idl_json` IDL dispatches correctly-encoded bytes to `Ok`,
+/// so `fuzz_idl_parsing_never_panics` reaches argument parsing.
+#[test]
+fn generated_idl_json_reaches_instruction_parsing() {
+    let strategy = arb::arb_idl_json().prop_flat_map(|json| {
+        let idl = decode_idl_data(&json).unwrap_or_else(|e| panic!("decode failed: {e}\n{json}"));
+        let types = Arc::new(idl.types.clone());
+        let bytes = arb::arb_valid_instruction_bytes(&idl.instructions[0], types);
+        (Just(idl), bytes)
+    });
+    let mut runner = TestRunner::deterministic();
+    for _ in 0..256 {
+        let (idl, bytes) = strategy.new_tree(&mut runner).unwrap().current();
+        let result = parse_instruction_with_idl(&bytes, TEST_PROGRAM_ID, &idl);
+        let parsed = result.unwrap_or_else(|e| panic!("valid bytes rejected: {e}"));
+        assert_eq!(parsed.instruction_name, idl.instructions[0].name);
+    }
+}
+
+/// Decodes generated IDL JSON, failing the case instead of skipping it, so a
+/// generator regression cannot turn a property into a no-op.
+fn decode_generated(idl_json: &str) -> Result<Idl, TestCaseError> {
+    decode_idl_data(idl_json).map_err(|e| {
+        TestCaseError::fail(format!("generated IDL failed to decode: {e}\n{idl_json}"))
     })
 }
 
@@ -195,9 +251,8 @@ proptest! {
         inst_idx in any::<usize>(),
         data in prop::collection::vec(any::<u8>(), 0..1300usize),
     ) {
-        if let Ok(idl) = decode_idl_data(&idl_json) {
-            check_dispatch(&idl, use_valid_disc, inst_idx, &data)?;
-        }
+        let idl = decode_generated(&idl_json)?;
+        check_dispatch(&idl, use_valid_disc, inst_idx, &data)?;
     }
 
     /// `decode_idl_data` must not panic on completely arbitrary string input.
@@ -215,9 +270,8 @@ proptest! {
         inst_idx in any::<usize>(),
         data in prop::collection::vec(any::<u8>(), 0..200usize),
     ) {
-        if let Ok(idl) = decode_idl_data(&idl_json) {
-            check_dispatch(&idl, use_valid_disc, inst_idx, &data)?;
-        }
+        let idl = decode_generated(&idl_json)?;
+        check_dispatch(&idl, use_valid_disc, inst_idx, &data)?;
     }
 
     /// Valid input must always parse successfully.
@@ -248,11 +302,10 @@ proptest! {
         length_prefix in any::<u32>(),
         trailing in prop::collection::vec(any::<u8>(), 0..=8usize),
     ) {
-        if let Ok(idl) = decode_idl_data(&idl_json) {
-            let mut data = length_prefix.to_le_bytes().to_vec();
-            data.extend_from_slice(&trailing);
-            check_dispatch(&idl, true, 0, &data)?;
-        }
+        let idl = decode_generated(&idl_json)?;
+        let mut data = length_prefix.to_le_bytes().to_vec();
+        data.extend_from_slice(&trailing);
+        check_dispatch(&idl, true, 0, &data)?;
     }
 }
 

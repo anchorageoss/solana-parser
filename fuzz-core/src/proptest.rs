@@ -12,7 +12,7 @@
 //! - [`arb_idl_type`] — any `IdlType` including nested containers
 //! - [`arb_idl_instruction`] — a random `IdlInstruction` with random discriminator
 //! - [`arb_idl`] — a complete `Idl` with unique instruction names/discriminators
-//! - [`arb_idl_json`] — `arb_idl` serialized to JSON
+//! - [`arb_idl_json`] — `arb_idl` serialized to JSON via [`idl_to_json`]
 //! - [`arb_bytes_for_type`] — valid borsh-encoded bytes for a given `IdlType`
 //! - [`arb_valid_instruction_bytes`] — discriminator + valid borsh arg bytes
 
@@ -149,9 +149,22 @@ pub fn arb_idl() -> impl Strategy<Value = Idl> {
     })
 }
 
+/// Serializes `idl` in the shape `decode_idl_data` accepts.
+///
+/// `Idl`'s own `Serialize` impl omits an empty `types` array, but
+/// `decode_idl_data` requires both top-level arrays, so they are written out
+/// explicitly here.
+pub fn idl_to_json(idl: &Idl) -> String {
+    serde_json::json!({
+        "instructions": idl.instructions,
+        "types": idl.types,
+    })
+    .to_string()
+}
+
 /// Generates a valid IDL serialized as a JSON string.
 pub fn arb_idl_json() -> impl Strategy<Value = String> {
-    arb_idl().prop_map(|idl| serde_json::to_string(&idl).expect("Idl always serializes"))
+    arb_idl().prop_map(|idl| idl_to_json(&idl))
 }
 
 // ── Borsh byte strategies ─────────────────────────────────────────────────────
