@@ -66,7 +66,9 @@ jobs:
         run: cargo fuzz run fuzz_transaction -- -max_total_time=30
         working-directory: fuzz
 
-      - name: Label PR on fuzz failure
+      # The fuzz steps use continue-on-error so every target runs; this step
+      # labels the PR and then fails the job if any of them failed.
+      - name: Label PR and report fuzz result
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -75,6 +77,8 @@ jobs:
              || [ "${{ steps.fuzz_instruction_data.outcome }}" = "failure" ] \
              || [ "${{ steps.fuzz_transaction.outcome }}" = "failure" ]; then
             gh pr edit "$PR_NUMBER" --add-label fuzz-failure || true
+            echo "::error::fuzzing found a failure (idl_json=${{ steps.fuzz_idl_json.outcome }}, instruction_data=${{ steps.fuzz_instruction_data.outcome }}, transaction=${{ steps.fuzz_transaction.outcome }})"
+            exit 1
           else
             gh pr edit "$PR_NUMBER" --remove-label fuzz-failure || true
           fi
