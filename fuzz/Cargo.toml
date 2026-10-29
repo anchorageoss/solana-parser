@@ -8,7 +8,9 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
+# Exact pin: a fuzzing runtime (vendored LLVM libFuzzer C++ built by build.rs),
+# so upgrades should be a deliberate, reviewed change.
+libfuzzer-sys = "=0.4.13"
 hex = "0.4.3"
 
 [dependencies.solana_parser]
