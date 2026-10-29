@@ -9,6 +9,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
+hex = "0.4.3"
 
 [dependencies.solana_parser]
 path = ".."
