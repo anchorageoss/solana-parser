@@ -70,6 +70,7 @@ pub fn construct_custom_idl_records_map(
             custom_idl_json: None,
             custom_idl_hash: None,
             override_builtin: false,
+            is_preset: false,
         };
 
         idl_map.insert(program_id, idl_record);
@@ -110,6 +111,7 @@ pub fn construct_idl_records_map(
             custom_idl_json: None,
             custom_idl_hash: None,
             override_builtin: false,
+            is_preset: false,
         };
 
         idl_map.insert(program_id, idl_record);
@@ -153,6 +155,7 @@ pub fn construct_idl_records_map(
                     custom_idl_json: Some(custom_idl_json),
                     custom_idl_hash: Some(custom_idl_hash),
                     override_builtin: true, // Always override for unknown programs
+                    is_preset: false,
                 };
                 idl_map.insert(program_id, idl_record);
             }
@@ -160,6 +163,15 @@ pub fn construct_idl_records_map(
     }
 
     Ok(idl_map)
+}
+
+/// Which of the two non-built-in sources a record's IDL came from.
+fn custom_idl_source(idl_record: &IdlRecord) -> crate::solana::structs::IdlSource {
+    if idl_record.is_preset {
+        crate::solana::structs::IdlSource::Preset
+    } else {
+        crate::solana::structs::IdlSource::Custom
+    }
 }
 
 /// A built-in program's IDL, decoded from its embedded JSON once per process,
@@ -225,7 +237,11 @@ pub fn resolve_idl_ref<'a>(
 
     if let Some(ref custom_idl) = idl_record.custom_idl {
         if idl_record.override_builtin || idl_record.program_type.is_none() {
-            return Ok((custom_idl, custom_idl_hash(idl_record)?, IdlSource::Custom));
+            return Ok((
+                custom_idl,
+                custom_idl_hash(idl_record)?,
+                custom_idl_source(idl_record),
+            ));
         }
     }
 
@@ -237,7 +253,11 @@ pub fn resolve_idl_ref<'a>(
             IdlSource::BuiltIn(program_type.clone()),
         ))
     } else if let Some(ref custom_idl) = idl_record.custom_idl {
-        Ok((custom_idl, custom_idl_hash(idl_record)?, IdlSource::Custom))
+        Ok((
+            custom_idl,
+            custom_idl_hash(idl_record)?,
+            custom_idl_source(idl_record),
+        ))
     } else {
         Err(format!("No IDL available for program: {program_key}").into())
     }
@@ -261,7 +281,7 @@ pub fn resolve_idl_for_record(
                 .custom_idl_json
                 .clone()
                 .ok_or("Custom IDL present but JSON string missing")?;
-            return Ok((custom_idl.clone(), json, IdlSource::Custom));
+            return Ok((custom_idl.clone(), json, custom_idl_source(idl_record)));
         }
     }
 
@@ -280,7 +300,7 @@ pub fn resolve_idl_for_record(
             .custom_idl_json
             .clone()
             .ok_or("Custom IDL present but JSON string missing")?;
-        Ok((custom_idl.clone(), json, IdlSource::Custom))
+        Ok((custom_idl.clone(), json, custom_idl_source(idl_record)))
     } else {
         Err(format!("No IDL available for program: {program_key}").into())
     }
